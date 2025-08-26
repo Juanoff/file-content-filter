@@ -1,0 +1,21 @@
+# Универсальное правило: все текстовые файлы храним с LF
+* text=auto eol=lf
+
+# Скрипты Gradle wrapper
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+# Kotlin/Java исходники
+*.kt text eol=lf
+*.java text eol=lf
+
+# Конфигурации Gradle
+*.gradle text eol=lf
+*.gradle.kts text eol=lf
+
+# Конфиги и мета-файлы
+*.xml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.gitignore text eol=lf
