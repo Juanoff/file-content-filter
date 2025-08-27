@@ -1,11 +1,21 @@
 package edu.juanoff;
 
+import edu.juanoff.validator.FloatTypeValidator;
+import edu.juanoff.validator.IntegerTypeValidator;
+import edu.juanoff.validator.StringTypeValidator;
+import edu.juanoff.validator.TypeValidator;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 @Command(
@@ -60,26 +70,36 @@ class FileContentFilter implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-        BufferedWriter writer = new BufferedWriter(new FileWriter(outputDir + filePrefix + "integers.txt", appendMode));
+        List<TypeValidator> typeValidators = List.of(
+                new IntegerTypeValidator(),
+                new FloatTypeValidator(),
+                new StringTypeValidator()
+        );
 
-        for (String fileName : inputFiles) {
-            BufferedReader reader = new BufferedReader(new FileReader(fileName));
-            String line = reader.readLine();
+        Path path = outputDir.isEmpty() ? Paths.get(".") : Paths.get(outputDir);
+        StandardOpenOption openOption = appendMode ? StandardOpenOption.APPEND : StandardOpenOption.CREATE;
+        Path prefixPath = path.resolve(filePrefix + typeValidators.getFirst().getOutputFileName());
+        BufferedWriter writer = Files.newBufferedWriter(prefixPath, openOption, StandardOpenOption.WRITE);
 
-            while (line != null) {
-                try {
-                    int num = Integer.parseInt(line);
-                    writer.write(String.valueOf(num));
-                    writer.newLine();
-                } catch (IOException ex) {
-                    System.out.println("Error: " + ex.getMessage());
-                } catch (NumberFormatException e) {
-                    // skip this ...
+        for (String file : inputFiles) {
+            try (BufferedReader reader = Files.newBufferedReader(Paths.get(file))) {
+                String line = reader.readLine();
+
+                while (line != null) {
+                    for (TypeValidator typeValidator : typeValidators) {
+                        if (typeValidator.isValid(line)) {
+                            writer.write(line);
+                            writer.newLine();
+                            break;
+                        }
+                    }
+
+                    line = reader.readLine();
                 }
-
-                line = reader.readLine();
             }
         }
+
+        writer.close();
         return 0;
     }
 
