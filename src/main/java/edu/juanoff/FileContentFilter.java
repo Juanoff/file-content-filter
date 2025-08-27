@@ -11,11 +11,10 @@ import picocli.CommandLine.Parameters;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 @Command(
@@ -77,9 +76,18 @@ class FileContentFilter implements Callable<Integer> {
         );
 
         Path path = outputDir.isEmpty() ? Paths.get(".") : Paths.get(outputDir);
-        StandardOpenOption openOption = appendMode ? StandardOpenOption.APPEND : StandardOpenOption.CREATE;
-        Path prefixPath = path.resolve(filePrefix + typeValidators.getFirst().getOutputFileName());
-        BufferedWriter writer = Files.newBufferedWriter(prefixPath, openOption, StandardOpenOption.WRITE);
+        Map<String, BufferedWriter> writers = new HashMap<>();
+        for (TypeValidator typeValidator : typeValidators) {
+            OpenOption[] openOptions = appendMode
+                    ? new OpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.APPEND, StandardOpenOption.WRITE}
+                    : new OpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE};
+
+            Path prefixPath = path.resolve(filePrefix + typeValidator.getOutputFileName());
+            writers.put(
+                    typeValidator.getOutputFileName(),
+                    Files.newBufferedWriter(prefixPath, openOptions)
+            );
+        }
 
         for (String file : inputFiles) {
             try (BufferedReader reader = Files.newBufferedReader(Paths.get(file))) {
@@ -88,18 +96,19 @@ class FileContentFilter implements Callable<Integer> {
                 while (line != null) {
                     for (TypeValidator typeValidator : typeValidators) {
                         if (typeValidator.isValid(line)) {
-                            writer.write(line);
-                            writer.newLine();
+                            writers.get(typeValidator.getOutputFileName()).write(line);
+                            writers.get(typeValidator.getOutputFileName()).newLine();
                             break;
                         }
                     }
-
                     line = reader.readLine();
                 }
             }
         }
 
-        writer.close();
+        for (TypeValidator typeValidator : typeValidators) {
+            writers.get(typeValidator.getOutputFileName()).close();
+        }
         return 0;
     }
 
