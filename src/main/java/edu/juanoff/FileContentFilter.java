@@ -9,12 +9,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.nio.file.*;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 
 @Command(
@@ -68,48 +63,21 @@ class FileContentFilter implements Callable<Integer> {
     private boolean appendMode;
 
     @Override
-    public Integer call() throws Exception {
-        List<TypeValidator> typeValidators = List.of(
-                new IntegerTypeValidator(),
-                new FloatTypeValidator(),
-                new StringTypeValidator()
-        );
-
-        Path path = outputDir.isEmpty() ? Paths.get(".") : Paths.get(outputDir);
-        Map<String, BufferedWriter> writers = new HashMap<>();
-        for (TypeValidator typeValidator : typeValidators) {
-            OpenOption[] openOptions = appendMode
-                    ? new OpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.APPEND, StandardOpenOption.WRITE}
-                    : new OpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE};
-
-            Path prefixPath = path.resolve(filePrefix + typeValidator.getOutputFileName());
-            writers.put(
-                    typeValidator.getOutputFileName(),
-                    Files.newBufferedWriter(prefixPath, openOptions)
+    public Integer call() {
+        try {
+            List<TypeValidator> typeValidators = List.of(
+                    new IntegerTypeValidator(),
+                    new FloatTypeValidator(),
+                    new StringTypeValidator()
             );
-        }
 
-        for (String file : inputFiles) {
-            try (BufferedReader reader = Files.newBufferedReader(Paths.get(file))) {
-                String line = reader.readLine();
+            new FileProcessor(typeValidators).process(inputFiles, outputDir, filePrefix, appendMode);
 
-                while (line != null) {
-                    for (TypeValidator typeValidator : typeValidators) {
-                        if (typeValidator.isValid(line)) {
-                            writers.get(typeValidator.getOutputFileName()).write(line);
-                            writers.get(typeValidator.getOutputFileName()).newLine();
-                            break;
-                        }
-                    }
-                    line = reader.readLine();
-                }
-            }
+            return 0;
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+            return 1;
         }
-
-        for (TypeValidator typeValidator : typeValidators) {
-            writers.get(typeValidator.getOutputFileName()).close();
-        }
-        return 0;
     }
 
     public static void main(String[] args) {
