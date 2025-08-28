@@ -74,7 +74,10 @@ public class FileContentFilter implements Callable<Integer> {
                     new FloatTypeValidator(),
                     new StringTypeValidator()
             );
-            new FileProcessor(typeValidators).process(inputFiles, outputDir, filePrefix, appendMode);
+
+            FileProcessor fileProcessor = new FileProcessor(typeValidators, shortStats, fullStats);
+            fileProcessor.process(inputFiles, outputDir, filePrefix, appendMode);
+
             return 0;
         } catch (Exception e) {
             System.err.println("Error during processing: " + e.getMessage());

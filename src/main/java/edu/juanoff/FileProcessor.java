@@ -1,5 +1,6 @@
 package edu.juanoff;
 
+import edu.juanoff.statistics.Statistics;
 import edu.juanoff.validator.TypeValidator;
 
 import java.io.BufferedReader;
@@ -12,14 +13,21 @@ import java.util.List;
 
 public class FileProcessor {
     private final List<TypeValidator> typeValidators;
+    private final Statistics statistics;
+    private final boolean shortStats;
+    private final boolean fullStats;
 
-    public FileProcessor(List<TypeValidator> typeValidators) {
+    public FileProcessor(List<TypeValidator> typeValidators, boolean shortStats, boolean fullStats) {
         this.typeValidators = typeValidators;
+        statistics = new Statistics();
+        this.shortStats = shortStats;
+        this.fullStats = fullStats;
     }
 
     public void process(String[] inputFiles, String outputDir, String filePrefix, boolean appendMode) throws IOException {
         Path path = prepareOutputPath(outputDir);
         processFiles(inputFiles, path, filePrefix, appendMode);
+        statistics.print(shortStats, fullStats);
     }
 
     private Path prepareOutputPath(String outputDir) throws IOException {
@@ -79,6 +87,7 @@ public class FileProcessor {
                     BufferedWriter writer = writerManager.getWriter(typeValidator.getOutputFileName());
                     writer.write(line);
                     writer.newLine();
+                    statistics.update(typeValidator.getOutputFileName(), line);
                 } catch (IOException e) {
                     System.err.println("Error writing line '" + line + "': " + e.getMessage());
                 }
