@@ -1,11 +1,16 @@
 package edu.juanoff.validator;
 
+import edu.juanoff.OutputFileName;
+
 public class FloatTypeValidator implements TypeValidator {
     @Override
     public boolean isValid(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
         try {
-            Float.parseFloat(value);
-            return true;
+            Double.parseDouble(value.trim());
+            return value.contains(".");
         } catch (NumberFormatException ex) {
             return false;
         }
@@ -13,6 +18,6 @@ public class FloatTypeValidator implements TypeValidator {
 
     @Override
     public String getOutputFileName() {
-        return "floats.txt";
+        return OutputFileName.FLOATS.getFileName();
     }
 }

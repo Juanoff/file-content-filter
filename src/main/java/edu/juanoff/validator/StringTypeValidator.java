@@ -1,13 +1,25 @@
 package edu.juanoff.validator;
 
+import edu.juanoff.OutputFileName;
+
+import java.util.List;
+
 public class StringTypeValidator implements TypeValidator {
+    private final List<TypeValidator> otherValidators = List.of(
+            new IntegerTypeValidator(),
+            new FloatTypeValidator()
+    );
+
     @Override
     public boolean isValid(String value) {
-        return value != null && !value.isEmpty();
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+        return otherValidators.stream().noneMatch(validator -> validator.isValid(value));
     }
 
     @Override
     public String getOutputFileName() {
-        return "strings.txt";
+        return OutputFileName.STRINGS.getFileName();
     }
 }
