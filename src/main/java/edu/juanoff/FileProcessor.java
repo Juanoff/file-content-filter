@@ -5,13 +5,12 @@ import edu.juanoff.validator.TypeValidator;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.nio.file.*;
-import java.util.HashMap;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
 
 public class FileProcessor {
-
     private final List<TypeValidator> typeValidators;
 
     public FileProcessor(List<TypeValidator> typeValidators) {
@@ -19,54 +18,73 @@ public class FileProcessor {
     }
 
     public void process(String[] inputFiles, String outputDir, String filePrefix, boolean appendMode) throws IOException {
-        Path path = outputDir.isEmpty() ? Paths.get(".") : Paths.get(outputDir);
-        Map<String, BufferedWriter> writers = openWriters(path, filePrefix, appendMode);
+        Path path = prepareOutputPath(outputDir);
+        processFiles(inputFiles, path, filePrefix, appendMode);
+    }
 
+    private Path prepareOutputPath(String outputDir) throws IOException {
+        Path path = outputDir.isEmpty() ? Paths.get(".") : Paths.get(outputDir).normalize();
         try {
+            Files.createDirectories(path);
+            if (!Files.isDirectory(path)) {
+                throw new IOException("Output path is not a directory: " + path);
+            }
+            if (!Files.isWritable(path)) {
+                throw new IOException("Output directory is not writable: " + path);
+            }
+            return path;
+        } catch (IOException e) {
+            throw new IOException("Failed to prepare output directory " + path + ": " + e.getMessage(), e);
+        }
+    }
+
+    private void processFiles(String[] inputFiles, Path path, String filePrefix, boolean appendMode) throws IOException {
+        try (WriterManager writerManager = new WriterManager(path, filePrefix, appendMode)) {
             for (String file : inputFiles) {
-                processFile(file, writers);
-            }
-        } finally {
-            closeWriters(writers);
-        }
-    }
-
-    private Map<String, BufferedWriter> openWriters(Path path, String filePrefix, boolean appendMode) throws IOException {
-        Map<String, BufferedWriter> writers = new HashMap<>();
-        for (TypeValidator typeValidator : typeValidators) {
-            OpenOption[] openOptions = appendMode
-                    ? new OpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.APPEND, StandardOpenOption.WRITE}
-                    : new OpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE};
-
-            Path prefixPath = path.resolve(filePrefix + typeValidator.getOutputFileName());
-            writers.put(typeValidator.getOutputFileName(), Files.newBufferedWriter(prefixPath, openOptions));
-        }
-        return writers;
-    }
-
-    private void processFile(String file, Map<String, BufferedWriter> writers) throws IOException {
-        try (BufferedReader reader = Files.newBufferedReader(Paths.get(file))) {
-            String line = reader.readLine();
-            while (line != null) {
-                processLine(line, writers);
-                line = reader.readLine();
+                try {
+                    processFile(file, writerManager);
+                } catch (IOException e) {
+                    System.err.println("Error processing file " + file + ": " + e.getMessage());
+                }
             }
         }
     }
 
-    private void processLine(String line, Map<String, BufferedWriter> writers) throws IOException {
+    private void processFile(String file, WriterManager writerManager) throws IOException {
+        Path filePath = Paths.get(file);
+        if (!Files.exists(filePath)) {
+            System.err.println("Input file does not exist: " + file);
+            return;
+        }
+        if (!Files.isReadable(filePath)) {
+            System.err.println("Input file is not readable: " + file);
+            return;
+        }
+
+        try (BufferedReader reader = Files.newBufferedReader(filePath)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isEmpty()) continue;
+                processLine(line, writerManager);
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading file " + file + ": " + e.getMessage());
+        }
+    }
+
+    private void processLine(String line, WriterManager writerManager) {
         for (TypeValidator typeValidator : typeValidators) {
             if (typeValidator.isValid(line)) {
-                writers.get(typeValidator.getOutputFileName()).write(line);
-                writers.get(typeValidator.getOutputFileName()).newLine();
-                break;
+                try {
+                    BufferedWriter writer = writerManager.getWriter(typeValidator.getOutputFileName());
+                    writer.write(line);
+                    writer.newLine();
+                } catch (IOException e) {
+                    System.err.println("Error writing line '" + line + "': " + e.getMessage());
+                }
+                return;
             }
         }
-    }
-
-    private void closeWriters(Map<String, BufferedWriter> writers) throws IOException {
-        for (TypeValidator typeValidator : typeValidators) {
-            writers.get(typeValidator.getOutputFileName()).close();
-        }
+        System.err.println("Unrecognized line skipped: " + line);
     }
 }

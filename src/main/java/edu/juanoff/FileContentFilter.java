@@ -19,8 +19,7 @@ import java.util.concurrent.Callable;
         description = "Filters content of input files to output files, " +
                 "write results to output files and prints statistics to STDOUT."
 )
-class FileContentFilter implements Callable<Integer> {
-
+public class FileContentFilter implements Callable<Integer> {
     @Parameters(
             paramLabel = "FILES",
             description = "One or more input files to filter.",
@@ -64,18 +63,21 @@ class FileContentFilter implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        if (!filePrefix.matches("[a-zA-Z0-9_-]*")) {
+            System.err.println("Invalid prefix: must contain only letters, numbers, underscores or hyphens.");
+            return 1;
+        }
+
         try {
             List<TypeValidator> typeValidators = List.of(
                     new IntegerTypeValidator(),
                     new FloatTypeValidator(),
                     new StringTypeValidator()
             );
-
             new FileProcessor(typeValidators).process(inputFiles, outputDir, filePrefix, appendMode);
-
             return 0;
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            System.err.println("Error during processing: " + e.getMessage());
             return 1;
         }
     }
