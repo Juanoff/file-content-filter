@@ -1,37 +1,88 @@
 package edu.juanoff;
 
+import edu.juanoff.validator.FloatTypeValidator;
+import edu.juanoff.validator.IntegerTypeValidator;
+import edu.juanoff.validator.StringTypeValidator;
+import edu.juanoff.validator.TypeValidator;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+import java.util.List;
 import java.util.concurrent.Callable;
 
-@Command(name = "file_content_filter",
+@Command(
+        name = "file-content-filter",
         mixinStandardHelpOptions = true,
-        version = "file_content_filter 1.0",
-        description = "Filtering content of files to output files and prints statistics in STDOUT.")
-class FileContentFilter implements Callable<Integer> {
+        version = "file-content-filter 1.0",
+        description = "Filters content of input files to output files, " +
+                "write results to output files and prints statistics to STDOUT."
+)
+public class FileContentFilter implements Callable<Integer> {
+    @Parameters(
+            paramLabel = "FILES",
+            description = "One or more input files to filter.",
+            arity = "1..*"
+    )
+    private String[] inputFiles;
 
-    @Parameters(paramLabel = "FILENAME", description = "One or more files whose need to filtering.")
-    private String[] fileNames;
+    @Option(
+            names = {"-o", "--output-dir"},
+            paramLabel = "DIRECTORY",
+            description = "Directory where output files will be saved. Defaults to current directory.",
+            defaultValue = ""
+    )
+    private String outputDir;
 
-    @Option(names = {"-o"}, paramLabel = "DIRECTORY", description = "Directory to save output files.")
-    private String saveDirectory;
+    @Option(
+            names = {"-s", "--short-stats"},
+            description = "Print short statistics."
+    )
+    private boolean shortStats;
 
-    @Option(names = {"-s"}, description = "Short statistics.")
-    private boolean shortStatistics;
+    @Option(
+            names = {"-f", "--full-stats"},
+            description = "Print full statistics."
+    )
+    private boolean fullStats;
 
-    @Option(names = {"-f"}, description = "Full statistics.")
-    private boolean fullStatistics;
+    @Option(
+            names = {"-p", "--prefix"},
+            paramLabel = "PREFIX",
+            description = "Prefix for naming output files.",
+            defaultValue = ""
+    )
+    private String filePrefix;
 
-    @Option(names = {"-p"}, paramLabel = "PREFIX", description = "Prefix name for output files.")
-    private String prefix;
+    @Option(
+            names = {"-a", "--append"},
+            description = "Enable append mode (append results to existing output files instead of overwriting)."
+    )
+    private boolean appendMode;
 
     @Override
-    public Integer call() throws Exception {
-        // some code...
-        return 1;
+    public Integer call() {
+        if (!filePrefix.matches("[a-zA-Z0-9_-]*")) {
+            System.err.println("Invalid prefix: must contain only letters, numbers, underscores or hyphens.");
+            return 1;
+        }
+
+        try {
+            List<TypeValidator> typeValidators = List.of(
+                    new IntegerTypeValidator(),
+                    new FloatTypeValidator(),
+                    new StringTypeValidator()
+            );
+
+            FileProcessor fileProcessor = new FileProcessor(typeValidators, shortStats, fullStats);
+            fileProcessor.process(inputFiles, outputDir, filePrefix, appendMode);
+
+            return 0;
+        } catch (Exception e) {
+            System.err.println("Error during processing: " + e.getMessage());
+            return 1;
+        }
     }
 
     public static void main(String[] args) {
