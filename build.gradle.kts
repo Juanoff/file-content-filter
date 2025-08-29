@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "edu.juanoff"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -26,6 +26,12 @@ tasks.jar {
     manifest {
         attributes["Main-Class"] = application.mainClass.get()
     }
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("file-content-filter")
+    archiveVersion.set("1.0.0")
+    archiveClassifier.set("")
 }
 
 tasks.test {
