@@ -22,7 +22,7 @@
 2. Перейдите в корневую директорию проекта, где находится файл **build.gradle.kts**. 
 3. Выполните сборку с помощью Gradle Wrapper: 
     ```bash 
-        ./gradlew shadowJar
+    ./gradlew shadowJar
     ```
 4. После успешной сборки JAR-файл появится в директории **build/libs** с именем **file-content-filter-1.0.0.jar**. 
 5. Запустите программу с помощью команды:
